@@ -1,0 +1,10 @@
+SHODAI Hashrama = 55 + 5;
+NIDAIME Tobirama = 128;
+
+CHECK (number < alphaOne) {
+    alphaOne = alphaOne + number;
+} PSYCH {
+    alphaOne = alphaOne - number;
+}
+
+YONDAIME Minato = alphaOne * alphaOne / number;

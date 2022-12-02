@@ -64,11 +64,13 @@ SEMI = 22
 DT = 23
 LBR = 24
 RBR = 25
+AND = 26
+OR = 27
 
 DIGITS = re.compile("^[0-9]+$")
 FLOAT = re.compile("^[0-9]+.[0-9]+$")
 LETTERS = re.compile("^[a-zA-Z]+$")
-VARNAME = re.compile("^[a-zA-Z_]{6,8}")
+VARNAME = re.compile("^[a-zA-Z_]{6,8}$")
 
 KEYWORDS = [
             'SHODAI',
@@ -92,14 +94,6 @@ class Error:
     def __repr__(self):
         result = f'{self.errorName}: {self.details}\nFile: {self.fn} Line: {self.ln} at {self.pos}'
         return result
-
-class IllegalCharError(Error):
-	def __init__(self, pos, details):
-		super().__init__(pos, 'Illegal Character', details)
-
-class InvalidSyntaxError(Error):
-    def __init__(self, pos, details):
-        super().__init__(pos, 'Invalid Syntax ' + details)
 
 # Token class to store token object with type and value
 class Token:
@@ -162,17 +156,40 @@ class Lexer:
                 tokens.append(Token(RPRN, ')'))
                 self.advance()
             elif self.currentChar == '=':
+                tokens.append(self.createEquals())
                 tokens.append(Token(EQ, '='))
                 self.advance()
             elif self.currentChar == ';':
                 tokens.append(Token(SEMI, ';'))
                 self.advance()
+            elif self.currentChar == '{':
+                tokens.append(Token(LBR, '{'))
+                self.advance()
+            elif self.currentChar == '}':
+                tokens.append(Token(RBR, '}'))
+                self.advance()
+            elif self.currentChar == '!':
+                tokens.append(self.createEquals())
+                self.advance()
+            elif self.currentChar == '<':
+                tokens.append(self.createLts())
+                self.advance()
+            elif self.currentChar == '>':
+                tokens.append(self.createGts())
+                self.advance()
+            elif self.currentChar == '&':
+                tokens.append(self.createGts())
+                self.advance()
+            elif self.currentChar == '|':
+                tokens.append(self.createGts())
+                self.advance()
             else:
                 pos = self.position
-                self.currentChar = self.currentChar.replace("error:","")
-                char = "'"+self.currentChar+"'"
+                char = self.currentChar.split(":")
+                eName = char[0]
+                detail = "'"+char[1]+"'"
                 self.advance()
-                return tokens, Error(pos, details=char, errorName='IllegalCharError',fn = self.fn, ln = self.ln)
+                return tokens, Error(pos, details=detail, errorName=eName,fn = self.fn, ln = self.ln)
 
         tokens.append(Token(EOF, 'EOF'))
         return tokens, None
@@ -187,8 +204,11 @@ class Lexer:
                     dotCount += 1
                 numStr += self.currentChar
                 self.advance()
+                if not re.search(DIGITS, numStr):
+                    break
+
             if not re.search(DIGITS, numStr):
-                self.currentChar = "error:"+ numStr[-1]
+                self.currentChar = "IllegalCharError:"+ numStr[-1]
                 return
             if dotCount == 0:
                 if re.search(DIGITS, numStr):
@@ -199,9 +219,15 @@ class Lexer:
     def createIdentifier(self):
         idStr = ''
 
-        while self.currentChar != None and self.currentChar != ' ' and re.search(LETTERS, self.currentChar):
+        while self.currentChar != None and self.currentChar != ' ':
             idStr += self.currentChar
             self.advance()
+            if not re.search(LETTERS, self.currentChar):
+                break
+
+        if not re.search(LETTERS, idStr):
+            self.currentChar = "IllegalCharError:"+ idStr[-1]
+            return
 
         if idStr in KEYWORDS:
             if idStr in DATATYPES:
@@ -212,10 +238,75 @@ class Lexer:
 
         if tokenType == IDENTIFIER:
             if not re.search(VARNAME, idStr):
-                self.currentChar = "error:"+idStr
+                print(idStr)
+                self.currentChar = "IllegalSyntaxError:Illegal Variable Name"
                 return
+            else: return Token(tokenType, idStr)
         else:
             return Token(tokenType, idStr)
+
+    def createEquals(self):
+        idStr = ''
+
+        while self.currentChar != None and self.currentChar != ' ':
+            idStr += self.currentChar
+            self.advance()
+        
+        if idStr == '=':
+            return Token(EQ, '=')
+        elif idStr == '==':
+            return Token(EE, '==')
+        elif idStr == '!=':
+            return Token(EE, '!=')
+        else:
+            self.currentChar = "IllegalCharError:"+ idStr[-1]
+            return
+
+    def createLts(self):
+        idStr = ''
+
+        while self.currentChar != None and self.currentChar != ' ':
+            idStr += self.currentChar
+            self.advance()
+
+        if idStr == '<':
+            return Token(LT, '<')
+        elif idStr == '==':
+            return Token(LTE, '<=')
+        else:
+            self.currentChar = "IllegalCharError:"+ idStr[-1]
+            return
+
+    def createGts(self):
+        idStr = ''
+
+        while self.currentChar != None and self.currentChar != ' ':
+            idStr += self.currentChar
+            self.advance()
+
+        if idStr == '>':
+            return Token(GT, '>')
+        elif idStr == '==':
+            return Token(GTE, '>=')
+        else:
+            self.currentChar = "IllegalCharError:"+ idStr[-1]
+            return
+
+    def createBoolOps(self):
+        idStr = ''
+
+        while self.currentChar != None and self.currentChar != ' ':
+            idStr += self.currentChar
+            self.advance()
+
+        if idStr == '&&':
+            return Token(AND, '&&')
+        elif idStr == '||':
+            return Token(OR, '||')
+        else:
+            self.currentChar = "IllegalCharError:"+ idStr[-1]
+            return
+
 
 
 class Parser:
@@ -231,14 +322,14 @@ class Parser:
 
         self.currentToken = self.tokens[self.currentToken]
 
-    def parse(self):
-        res = self.stmt()
-        if not res.error and self.currentToken.type != EOF:
-            return res.failure(InvalidSyntaxError(
-                self.currentToken.startPos, self.currentToken.endPos,
-                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', 'AND' or 'OR'"
-            ))
-        return res
+    # def parse(self):
+    #     res = self.stmt()
+    #     if not res.error and self.currentToken.type != EOF:
+    #         return res.failure(InvalidSyntaxError(
+    #             self.currentToken.startPos, self.currentToken.endPos,
+    #             "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', 'AND' or 'OR'"
+    #         ))
+    #     return res
 
     def stmt(self):
         if self.currentToken.type == CHECK:
@@ -359,7 +450,7 @@ class Parser:
         pass
 
 def run(fn):
-    print("Running file: "+fn)
+    print("\nRunning file: "+fn+'\n')
     fileObj = open(fn, "r")
     text = fileObj.read()
 
@@ -367,7 +458,9 @@ def run(fn):
     lexer = Lexer(fn, text)
     tokens, error = lexer.lex()
     if error: print(error)
-    else: print(*tokens, sep="\n")
+    else: 
+        print(*tokens, sep="\n")
+        print("Lexeme count: "+ str(len(tokens))+'\n')
     # return tokens, error
 	
 	# Generate AST
