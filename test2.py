@@ -95,8 +95,9 @@ class Error:
 
 # Token class to store token object with type and value
 class Token:
-    def __init__(self, type_, value = None):
+    def __init__(self, type_, pos, value = None):
         self.type = type_
+        self.pos = pos
         self.value = value
 
     def matches(self, type_, value):
@@ -139,35 +140,34 @@ class Lexer:
             elif re.search(LETTERS, self.currentChar):
                 tokens.append(self.createIdentifier())
             elif self.currentChar == '+':
-                tokens.append(Token(PLUS, '+'))
+                tokens.append(Token(PLUS, self.position, '+'))
                 self.advance()
             elif self.currentChar == '-':
-                tokens.append(Token(MINUS, '-'))
+                tokens.append(Token(MINUS, self.position, '-'))
                 self.advance()
             elif self.currentChar == '*':
-                tokens.append(Token(MUL, '-'))
+                tokens.append(Token(MUL, self.position, '-'))
                 self.advance()
             elif self.currentChar == '/':
-                tokens.append(Token(DIV, '/'))
+                tokens.append(Token(DIV, self.position, '/'))
                 self.advance()
             elif self.currentChar == '(':
-                tokens.append(Token(LPRN, '('))
+                tokens.append(Token(LPRN, self.position, '('))
                 self.advance()
             elif self.currentChar == ')':
-                tokens.append(Token(RPRN, ')'))
+                tokens.append(Token(RPRN, self.position, ')'))
                 self.advance()
             elif self.currentChar == '=':
                 tokens.append(self.createEquals())
-                tokens.append(Token(EQ, '='))
                 self.advance()
             elif self.currentChar == ';':
-                tokens.append(Token(SEMI, ';'))
+                tokens.append(Token(SEMI, self.position, ';'))
                 self.advance()
             elif self.currentChar == '{':
-                tokens.append(Token(LBR, '{'))
+                tokens.append(Token(LBR, self.position, '{'))
                 self.advance()
             elif self.currentChar == '}':
-                tokens.append(Token(RBR, '}'))
+                tokens.append(Token(RBR, self.position, '}'))
                 self.advance()
             elif self.currentChar == '!':
                 tokens.append(self.createEquals())
@@ -192,7 +192,7 @@ class Lexer:
                 self.advance()
                 return tokens, Error(pos, details=detail, errorName=eName,fn = self.fn, ln = self.ln)
 
-        tokens.append(Token(EOF, 'EOF'))
+        tokens.append(Token(EOF, self.position, 'EOF'))
         return tokens, None
 
     def createNumber(self):
@@ -213,9 +213,9 @@ class Lexer:
                 return
             if dotCount == 0:
                 if re.search(DIGITS, numStr):
-                    return Token(INT, int(numStr))
+                    return Token(INT, self.position, int(numStr))
             else:
-                return Token(FLOAT, float(numStr))
+                return Token(FLOAT, self.position, float(numStr))
     
     def createIdentifier(self):
         idStr = ''
@@ -243,9 +243,9 @@ class Lexer:
                 print(idStr)
                 self.currentChar = "IllegalSyntaxError:Illegal Variable Name"
                 return
-            else: return Token(tokenType, idStr)
+            else: return Token(tokenType, self.position, idStr)
         else:
-            return Token(tokenType, idStr)
+            return Token(tokenType, self.position, idStr)
 
     def createEquals(self):
         idStr = ''
@@ -255,11 +255,11 @@ class Lexer:
             self.advance()
         
         if idStr == '=':
-            return Token(EQ, '=')
+            return Token(EQ, self.position, '=')
         elif idStr == '==':
-            return Token(EE, '==')
+            return Token(EE, self.position, '==')
         elif idStr == '!=':
-            return Token(EE, '!=')
+            return Token(EE, self.position, '!=')
         else:
             self.currentChar = "IllegalCharError:"+ idStr[-1]
             return
@@ -272,9 +272,9 @@ class Lexer:
             self.advance()
 
         if idStr == '<':
-            return Token(LT, '<')
+            return Token(LT, self.position, '<')
         elif idStr == '==':
-            return Token(LTE, '<=')
+            return Token(LTE, self.position, '<=')
         else:
             self.currentChar = "IllegalCharError:"+ idStr[-1]
             return
@@ -287,9 +287,9 @@ class Lexer:
             self.advance()
 
         if idStr == '>':
-            return Token(GT, '>')
+            return Token(GT, self.position, '>')
         elif idStr == '==':
-            return Token(GTE, '>=')
+            return Token(GTE, self.position, '>=')
         else:
             self.currentChar = "IllegalCharError:"+ idStr[-1]
             return
@@ -302,9 +302,9 @@ class Lexer:
             self.advance()
 
         if idStr == '&&':
-            return Token(AND, '&&')
+            return Token(AND, self.position, '&&')
         elif idStr == '||':
-            return Token(OR, '||')
+            return Token(OR, self.position, '||')
         else:
             self.currentChar = "IllegalCharError:"+ idStr[-1]
             return
@@ -315,26 +315,28 @@ class Parser:
     def __init__(self, fn ,tokens) -> None:
         self.fn = fn
         self.tokens = tokens
-        self.currentToken = 0
-        self.currentToken = tokens[self.currentToken]
+        self.idx = 0
+        self.currentToken = tokens[self.idx]
     
     def getNextToken(self):
-        if self.currentToken < len(self.tokens):
-            self.currentToken += 1
+        if self.idx < len(self.tokens):
+            self.idx += 1
 
-        self.currentToken = self.tokens[self.currentToken]
+        self.currentToken = self.tokens[self.idx]
+        print(self.currentToken)
 
-    # def parse(self):
-    #     res = self.stmt()
-    #     if not res.error and self.currentToken.type != EOF:
-    #         return res.failure(InvalidSyntaxError(
-    #             self.currentToken.startPos, self.currentToken.endPos,
-    #             "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', '&&' or '||'"
-    #         ))
-    #     return res
+    def parse(self):
+        res = self.stmt()
+        if not res.error and self.currentToken.type != EOF:
+            return res.failure(Error(
+                self.currentToken.position, "InvalidSyntaxError: ",
+                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', '&&' or '||'"
+            ))
+        return res
 
     def stmt(self):
         print("Enter <stmt>")
+        print(self.currentToken)
         if self.currentToken.type == CHECK:
             self.if_stmt()
         elif self.currentToken.type == SPAN:
@@ -400,11 +402,11 @@ class Parser:
         print("Enter <assign_stmt>")
         if self.currentToken.type == IDENTIFIER:
             self.getNextToken()
-            if self.currentToken.type == EQ:
-                self.getNextToken()
-                self.expr()
-            else: 
-                self.error()
+        elif self.currentToken.type == EQ:
+            self.getNextToken()
+            self.expr()
+            # else: 
+            #     self.error()
         else:
             self.error()
         
@@ -413,8 +415,8 @@ class Parser:
     # Parses strings in the language generated by the rule:
     # <declare_stmt> --> `data_type` `id` `;`
     def declare_stmt(self):
-        print("Enter <declare_stmt>")
         if self.currentToken.type == DT:
+            print("Enter <declare_stmt>")
             self.getNextToken()
             if self.currentToken.type == IDENTIFIER:
                 self.getNextToken()
@@ -455,7 +457,7 @@ class Parser:
     # <factor> --> `id` | `int_lit` | `float_lit` | `(` <expr> `)`
     def factor(self):
         print("Enter <factor>")
-        if self.currentToken.currentToken.type == IDENTIFIER or self.currentToken.currentToken.type == INT or self.currentToken.currentToken.type == FLOAT :
+        if self.currentToken.type == IDENTIFIER or self.currentToken.type == INT or self.currentToken.type == FLOAT :
             self.getNextToken()
         elif self.currentToken.type == LPRN:
             self.getNextToken()
@@ -486,9 +488,8 @@ def run(fn):
         print("Lexeme count: "+ str(len(tokens))+'\n')
 	
 	# Generate AST
-    # parser = Parser(tokens)
-    # ast = parser.parse()
-    # if ast.error: return None, ast.error
+    parser = Parser(fn, tokens)
+    parse = parser.parse()
 
 run('sample1.txt')
-run('sample2.txt')
+# run('sample2.txt')
