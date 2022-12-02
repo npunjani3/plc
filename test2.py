@@ -28,7 +28,7 @@ int y = 0, x = 7 < y ? 4 : 80 * 7;
 <factor> --> `id` | `int_lit` | `float_lit` | `bool_lit` | `(` <bexpr> `)`
 
 '''
-from _typeshed import Self
+# from _typeshed import Self
 import re
 
 #######################################
@@ -66,8 +66,9 @@ LBR = 24
 RBR = 25
 
 DIGITS = re.compile("^[0-9]+$")
+FLOAT = re.compile("^[0-9]+.[0-9]+$")
 LETTERS = re.compile("^[a-zA-Z]+$")
-VARNAME = re.compile("^[a-z][A-Z]_{6-8}")
+VARNAME = re.compile("^[a-zA-Z_]{6,8}")
 
 KEYWORDS = [
             'SHODAI',
@@ -79,14 +80,17 @@ KEYWORDS = [
             'PSYCH'
         ]
 
+DATATYPES = [KEYWORDS[0], KEYWORDS[1], KEYWORDS[2], KEYWORDS[3]]
 class Error:
-    def __init__(self, pos, errorName, details):
+    def __init__(self, pos, errorName, details, fn, ln):
         self.pos = pos
         self.errorName = errorName
         self.details = details
+        self.fn = fn
+        self.ln = ln
 
-    def __str__(self):
-        result = f'{self.errorName}: {self.details}\n File {self.pos.fn}'
+    def __repr__(self):
+        result = f'{self.errorName}: {self.details}\nFile: {self.fn} Line: {self.ln} at {self.pos}'
         return result
 
 class IllegalCharError(Error):
@@ -95,7 +99,7 @@ class IllegalCharError(Error):
 
 class InvalidSyntaxError(Error):
     def __init__(self, pos, details):
-        super().__init__(pos, 'Invalid Syntax', details)
+        super().__init__(pos, 'Invalid Syntax ' + details)
 
 # Token class to store token object with type and value
 class Token:
@@ -107,13 +111,14 @@ class Token:
         return self.type == type_ and self.value == value
 
     # Token to String method
-    def __str__(self):
+    def __repr__(self):
         if self.value: return f'Next token is: {self.type}, Next Lexeme is {self.value}'
 
 class Lexer:
-    def __init__(self, fn ,str):
+    def __init__(self, fn ,text):
         self.fn = fn
-        self.str = str
+        self.text = text
+        self.ln = 1
         self.position = -1
         self.currentChar = None
         self.advance()
@@ -122,16 +127,21 @@ class Lexer:
     def advance(self):
         self.position += 1
         self.currentChar = self.text[self.position] if self.position < len(self.text) else None
-    
+
+    def lnAdvance(self):
+        self.ln += 1
+
     def lex(self):
         tokens = []
 
         while self.currentChar != None:
             if self.currentChar in ' \t\n':
+                if self.currentChar in '\n':
+                    self.lnAdvance()
                 self.advance()
-            elif self.currentChar in DIGITS:
+            elif re.search(DIGITS, self.currentChar):
                 tokens.append(self.createNumber())
-            elif self.currentChar in LETTERS:
+            elif re.search(LETTERS, self.currentChar):
                 tokens.append(self.createIdentifier())
             elif self.currentChar == '+':
                 tokens.append(Token(PLUS, '+'))
@@ -146,17 +156,23 @@ class Lexer:
                 tokens.append(Token(DIV, '/'))
                 self.advance()
             elif self.currentChar == '(':
-                tokens.append(LPRN)
+                tokens.append(Token(LPRN, '('))
                 self.advance()
             elif self.currentChar == ')':
-                tokens.append(RPRN)
+                tokens.append(Token(RPRN, ')'))
+                self.advance()
+            elif self.currentChar == '=':
+                tokens.append(Token(EQ, '='))
+                self.advance()
+            elif self.currentChar == ';':
+                tokens.append(Token(SEMI, ';'))
                 self.advance()
             else:
                 pos = self.position
-                char = self.currentChar
+                self.currentChar = self.currentChar.replace("error:","")
+                char = "'"+self.currentChar+"'"
                 self.advance()
-                return [], IllegalCharError(pos, "'" + char + "'")
-                pass
+                return tokens, Error(pos, details=char, errorName='IllegalCharError',fn = self.fn, ln = self.ln)
 
         tokens.append(Token(EOF, 'EOF'))
         return tokens, None
@@ -164,24 +180,46 @@ class Lexer:
     def createNumber(self):
             numStr = ''
             dotCount = 0
-            startPos = self.position
-            while self.currentChar != None and self.currentChar in DIGITS + '.':
+            
+            while self.currentChar != None and self.currentChar != ' ' and self.currentChar != ';':
                 if self.currentChar == '.':
                     if dotCount == 1: break
                     dotCount += 1
                 numStr += self.currentChar
                 self.advance()
+            if not re.search(DIGITS, numStr):
+                self.currentChar = "error:"+ numStr[-1]
+                return
             if dotCount == 0:
-                return Token(INT, int(numStr), startPos, self.pos)
+                if re.search(DIGITS, numStr):
+                    return Token(INT, int(numStr))
             else:
-                return Token(FLOAT, float(numStr), startPos, self.pos)
+                return Token(FLOAT, float(numStr))
     
     def createIdentifier(self):
-        pass
+        idStr = ''
+
+        while self.currentChar != None and self.currentChar != ' ' and re.search(LETTERS, self.currentChar):
+            idStr += self.currentChar
+            self.advance()
+
+        if idStr in KEYWORDS:
+            if idStr in DATATYPES:
+                tokenType = DT
+            else: tokenType = KEYWORD
+        else:
+            tokenType = IDENTIFIER
+
+        if tokenType == IDENTIFIER:
+            if not re.search(VARNAME, idStr):
+                self.currentChar = "error:"+idStr
+                return
+        else:
+            return Token(tokenType, idStr)
 
 
 class Parser:
-    def __init__(self, fn ,tokens:list(Token)) -> None:
+    def __init__(self, fn ,tokens) -> None:
         self.fn = fn
         self.tokens = tokens
         self.currentToken = 0
@@ -321,14 +359,20 @@ class Parser:
         pass
 
 def run(fn):
-    text = fn.read().split()
+    print("Running file: "+fn)
+    fileObj = open(fn, "r")
+    text = fileObj.read()
 
 	# Generate tokens
     lexer = Lexer(fn, text)
     tokens, error = lexer.lex()
-    if error: return None, error
+    if error: print(error)
+    else: print(*tokens, sep="\n")
+    # return tokens, error
 	
 	# Generate AST
-    parser = Parser(tokens)
-    ast = parser.parse()
-    if ast.error: return None, ast.error
+    # parser = Parser(tokens)
+    # ast = parser.parse()
+    # if ast.error: return None, ast.error
+
+run('sample.txt')

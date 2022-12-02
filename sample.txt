@@ -1,0 +1,2 @@
+SHODAI numberA = 5 + 5;
+NIDAIME numtwo = 128;
