@@ -6,3 +6,7 @@ CHECK (Hashrama < Tobirama && Tobirama < 1000) {
 } PSYCH {
     Tobirama = Tobirama / Hashrama;
 }
+
+SPAN (Hashrama < 100) {
+    Hashrama = Hashrama + 1;
+}
