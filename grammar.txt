@@ -1,0 +1,23 @@
+This is a LL Grammar 
+
+<start> --> <stmt>
+<stmt> --> <if_stmt> | <while_stmt> | <declare_stmt> | <assign_stmt> | <block> 
+<block> --> `{` { <stmt>`;` } `}`
+<if_stmt> -->  `check``(`<bool_expr>`)` <block> [ `psych` <block> ] 
+<while_stmt> -->  `span``(`<bool_expr>`)` <block> 
+<declare_stmt> --> <data_type> <assign_stmt>
+<assign_stmt>  --> `id` {`=` <expr>} `;`
+<expr> --> <term> { (`*`|`\`|`%`)  <term> }
+<term> --> <factor> { (`+`|`-`) <factor> }
+<factor> --> `id` | `int_lit` | `float_lit` | `(` <expr> `)`
+<data_type> --> 'SHODAI' | 'NIDAIME' | 'SANDAIME' | 'YONDAIME'
+
+
+<bool_expr> --> <band> { `||` <band> }
+<band> --> <beq> { `&&` <beq> }
+<beq> --> <brel> { (`!=`|`==`) <brel> }
+<brel> --> <bexpr> { (`<=`|`>=` | `<` | `>`) <bexpr> }
+<bexpr> --> <bterm> { (`+`|`-`) <bterm> }
+<bterm> --> <bnot> { (`*`|`\`|`%`) <bnot> }
+<bnot> -> [!!]<bfactor>
+<bfactor> --> `id` | `int_lit` | `float_lit` | `bool_lit` | `(` <bexpr> `)`

@@ -1,39 +1,6 @@
-'''
-RECURSIVE DECENT ALGORITHM ( RDA )
-Used to code out top down parsers, and LL Gramars which have two restrictions:
-- Must be pairwise disjoint
-- No left hand recursion
-
-int y = 0, x = 7 < y ? 4 : 80 * 7; 
-
-<stmt> --> <if_stmt> | <while_stmt> | <declare_stmt> | <assign_stmt> | <block> 
-<block> --> `{` { <stmt>`;` } `}`
-<if_stmt> -->  `check``(`<bool_expr>`)` <stmt> [ `psych` <stmt> ]  //put two seperate lines in parser 
-<while_stmt> -->  `span``(`<bool_expr>`)` <stmt> 
-<declare_stmt> --> `data_type` <assign_stmt>
-<assign_stmt>  --> `id` {`=` <expr>} `;`
-<expr> --> <term> { (`*`|`\`|`%`)  <term> }
-<term> --> <factor> { (`+`|`-`) <factor> }
-<factor> --> `id` | `int_lit` | `float_lit` | `(` <expr> `)`
-<data_type> --> 'SHODAI' | 'NIDAIME' | 'SANDAIME' | 'YONDAIME'
-
-
-<bool_expr> --> <band> { `OR` <band> }
-<band> --> <beq> { `AND` <beq> }
-<beq> --> <brel> { (`!=`|`==`) <brel> }
-<brel> --> <expr> { (`<=`|`>=` | `<` | `>`) <expr> }
-<bexpr> --> <bterm> { (`+`|`-`) <bterm> }
-<bterm> --> <bnot> { (`*`|`\`|`%`) <bnot> }
-<bnot> -> [!]<bfactor>
-<bfactor> --> `id` | `int_lit` | `float_lit` | `bool_lit` | `(` <bexpr> `)`
-
-'''
-# from _typeshed import Self
 import re
 
-#######################################
 # TOKENS
-#######################################
 
 KEYWORD = 1
 IDENTIFIER = 2
@@ -190,6 +157,12 @@ class Lexer:
             elif self.currentChar == '|':
                 tokens.append(self.createBoolOps())
                 self.advance()
+            elif not re.search(DIGITS, self.currentChar) or not re.search(LETTERS, self.currentChar):
+                pos= self.position
+                eName = "IllegalCharError" 
+                detail = "'"+self.currentChar+"'"
+                self.advance()
+                return tokens, Error(pos, details=detail, errorName=eName,fn = self.fn, ln = self.ln)
             else:
                 pos = self.position
                 char = self.currentChar.split(":")
@@ -245,7 +218,7 @@ class Lexer:
             elif idStr == 'CHECK':
                 tokenType = CHECK
             elif idStr == 'SPAN':
-                idStr = SPAN
+                tokenType = SPAN
             else: tokenType = KEYWORD
         else:
             tokenType = IDENTIFIER
@@ -253,7 +226,7 @@ class Lexer:
         if tokenType == IDENTIFIER:
             if not re.search(VARNAME, idStr):
                 print(idStr)
-                self.currentChar = "IllegalSyntaxError:Illegal Variable Name"
+                self.currentChar = "Error:Illegal Variable Name"
                 return
             else: return Token(tokenType, self.position, idStr)
         else:
@@ -550,13 +523,16 @@ class Parser:
         print("Enter <assign_stmt>")
         if self.currentToken.type == IDENTIFIER:
             self.getNextToken()
-            if self.currentToken.type != EQ:
-                self.error("Expected =")
-            else:
+            if self.currentToken.type == SEMI:
                 self.getNextToken()
-                self.expr()
-                if self.currentToken.type != SEMI:
-                    self.error("Expected ;")
+            else:
+                if self.currentToken.type != EQ:
+                    self.error("Expected =")
+                else:
+                    self.getNextToken()
+                    self.expr()
+                    if self.currentToken.type != SEMI:
+                        self.error("Expected ;")
         else:
             self.error("Error from assign_stmt")
         
@@ -631,9 +607,10 @@ def run(fn):
     else: 
         print(*tokens, sep="\n")
         print("Lexeme count: "+ str(len(tokens))+'\n')
-	
-	# Generate AST
-    parser = Parser(fn, tokens).parse()
+        
+        # Generate Parse Trace
+        Parser(fn, tokens).parse()
 
 run('sample1.txt')
-run('sample2.txt')
+# run('sample2.txt')
+# run('sample3.txt')
