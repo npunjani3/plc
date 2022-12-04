@@ -1,7 +1,7 @@
 SHODAI Hashrama = 55 + 5;
 NIDAIME Tobirama = 128;
 
-CHECK (Hashrama < Tobirama) && (Tobirama < 1000) {
+CHECK (Hashrama < Tobirama && Tobirama < 1000) {
     Tobirama = Tobirama * Hashrama;
 } PSYCH {
     Tobirama = Tobirama / Hashrama;
