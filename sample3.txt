@@ -2,4 +2,3 @@ SANDAIME number = 12;$
 SHODAI ramen;
 YONDAIME ramens;
 ramens = 1a23;
-

@@ -303,7 +303,8 @@ class Lexer:
 
 
 class Parser:
-    def __init__(self, fn ,tokens) -> None:
+    def __init__(self, fn ,tokens):
+        self.Error = False
         self.fn = fn
         self.tokens = tokens
         self.idx = -1
@@ -314,26 +315,24 @@ class Parser:
     def getNextToken(self):
         if self.idx < len(self.tokens):
             self.idx += 1
-
-        self.currentToken = self.tokens[self.idx]
-        print(self.currentToken)
-
+            self.currentToken = self.tokens[self.idx]
+            return print(self.currentToken)
+        else:
+            return
+    
     # Method to parse through list of tokens
     def parse(self):
         res = self.start()
-        if not res and self.currentToken.type != EOF:
-            return Error(
-                self.currentToken.pos, "InvalidSyntaxError: ",
-                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', '&&' or '||'", self.fn, 1
-            )
         return res
 
     # Parses strings in the language gnerated by the rule
     # <start --> <stmt> 
     def start(self):
-        while self.currentToken.type != EOF:
+        while self.currentToken.type != EOF or not self.Error:
             self.stmt()
-            if self.idx < len(self.tokens):
+            if self.Error == True:
+                break
+            else:
                 self.getNextToken()
 
     # Parses strings in the language gnerated by the rule
@@ -533,6 +532,8 @@ class Parser:
                     self.expr()
                     if self.currentToken.type != SEMI:
                         self.error("Expected ;")
+                        return
+                        # return Error(pos = 0, details ="Expected SEMI token", errorName = "IllegalSyntaxError", fn = self.fn, ln = 1)
         else:
             self.error("Error from assign_stmt")
         
@@ -591,7 +592,8 @@ class Parser:
         print("Exit <factor>")
 
     def error(self, details):
-        print("Error stoopid: "+details)
+        print("InvalidSyntaxError: "+details)
+        self.Error = True
         return
 
 # Method to execute lexer and parser on text file.
@@ -611,6 +613,7 @@ def run(fn):
         # Generate Parse Trace
         Parser(fn, tokens).parse()
 
-run('sample1.txt')
+# run('sample1.txt')
 # run('sample2.txt')
 # run('sample3.txt')
+run('sample4.txt')
