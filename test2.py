@@ -341,7 +341,7 @@ class Parser:
         print("Enter <stmt>")
         # self.getNextToken()
         # while self.idx < len(self.tokens):
-        if self.currentToken.type == KEYWORD:
+        if self.currentToken.type == CHECK:
             self.if_stmt()
         elif self.currentToken.type == SPAN:
             self.while_stmt()
@@ -379,7 +379,7 @@ class Parser:
     # <if_stmt> -->  `check``(`<bool_expr>`)` <block> [ `psych` <block> ] 
     def if_stmt(self):
         print("Enter <if_stmt>")
-        if not self.currentToken.matches(KEYWORD, 'CHECK'):
+        if not self.currentToken.type == CHECK:
             self.error("Expected CHECK")
         else:
             self.getNextToken()
@@ -397,7 +397,7 @@ class Parser:
                         self.error("Expected RBR")
                     else:
                         self.getNextToken()
-                        if self.currentToken.matches(KEYWORD, 'PSYCH'):
+                        if self.currentToken.type == PSYCH:
                             self.getNextToken()
                             self.block()
                         else:
@@ -613,7 +613,7 @@ def run(fn):
         # Generate Parse Trace
         Parser(fn, tokens).parse()
 
-# run('sample1.txt')
-# run('sample2.txt')
-# run('sample3.txt')
+run('sample1.txt')
+run('sample2.txt')
+run('sample3.txt')
 run('sample4.txt')

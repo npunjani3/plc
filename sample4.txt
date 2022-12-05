@@ -1,1 +1,2 @@
+CHECK (
 NIDAIME bobbys = 12341
