@@ -179,7 +179,7 @@ class Lexer:
             numStr = ''
             dotCount = 0
             
-            while self.currentChar != None and self.currentChar != ' ' and self.currentChar != ';' and self.currentChar != ')':
+            while self.currentChar != None and self.currentChar != ' ' and self.currentChar != ';' and self.currentChar != ')' and self.currentChar != '\n':
                 if self.currentChar == '.':
                     if dotCount == 1: break
                     dotCount += 1
